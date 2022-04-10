@@ -25,7 +25,11 @@ class Article(Base):
 
 Base.metadata.create_all(engine)
 
-url = 'https://www.konstantinschubert.com/feed.xml'
+urls = [
+    'https://www.konstantinschubert.com/feed.xml',
+    "https://xkcd.com/rss.xml",
+    "http://rss.slashdot.org/Slashdot/slashdot",
+]
 
 
 def get_unseen_articles(url):
@@ -42,7 +46,7 @@ def get_unseen_articles(url):
                 feed_url=entry.link,
                 title=entry.title,
                 content=entry.summary,
-                post_date=entry.published,
+                post_date=entry.published if hasattr(entry, "published") else entry.updated,
             )
             session.add(article)
             yield article
@@ -54,17 +58,19 @@ digest_path = Path(f"digest-{date.today()}.html")
 mobi_path = digest_path.with_suffix('.mobi')
 
 
-with digest_path.open("w", encoding="utf-8") as digest:
-    digest.write(f"Articles from {url}\n")
-    some_articles = False
+some_articles = False
 
-    for _article in get_unseen_articles(url):
-        some_articles = True
-        digest.write(f"<h2>{_article.title}</h2>\n")
-        digest.write(f"Posted on {_article.post_date}\n")
-        digest.write("\n")
-        digest.write(_article.content)
-        digest.write("\n")
+with digest_path.open("w", encoding="utf-8") as digest:
+    for url in urls:
+        digest.write(f"Articles from {url}\n")
+
+        for _article in get_unseen_articles(url):
+            some_articles = True
+            digest.write(f"<h2>{_article.title}</h2>\n")
+            digest.write(f"Posted on {_article.post_date}\n")
+            digest.write("\n")
+            digest.write(_article.content)
+            digest.write("\n")
 
 if some_articles:
     os.system(
